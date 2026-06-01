@@ -1,0 +1,328 @@
+package main {
+	package 'Signal Generator Package' {
+		part 'Signal Generator' {
+			out port waveSignal;
+			part 'Waveform Generator' {
+				out port signalWave;
+				in port signalCorrectionInstructions;
+				part 'Parameter Control Block' {
+					out port startCommand;
+					out port waveType;
+				}
+				part Counter {
+					out port count;
+					in port startCommand;
+				}
+				part 'Waveform Memory' {
+					out port waveValueAtCount;
+					in port count;
+					in port waveType;
+				}
+			}
+			part Oscillator {
+				out port carrierWave;
+				in port signalCorrectionInstructions;
+				part 'Crystal Resonator' {
+					out port vibration;
+				}
+				part 'Phase-Locked Loop' {
+					in port vibration;
+					out port acceleratedVibration;
+					in port frequencyDivider;
+				}
+				part Comparator {
+					in port acceleratedVibration;
+					out port digitalFrequency;
+				}
+				part 'Phase Accumulator' {
+					in port digitalFrequency;
+					out port phase;
+					in port phaseIncrement;
+				}
+				part 'Sine Lookup Table' {
+					in port phase;
+					out port sineWaveValueAtPhase;
+				}
+				part 'Frequency Control Unit' {
+					out port phaseIncrement;
+					out port frequencyDivider;
+				}
+			}
+			part Modulator {
+				in port signalWave;
+				in port carrierWave;
+				out port waveSignalDigital;
+				in port signalCorrectionInstructions;
+				part 'Synchronization Unit' {
+					in port signalWave;
+					in port carrierWave;
+					out port synchronizedWaves;
+				}
+				part 'Envelope Input Buffer' {
+					in port signalWave;
+					out port signalWave;
+				}
+				part 'Carrier Input Buffer' {
+					in port carrierWave;
+					out port carrierWave;
+				}
+				part Multiplier {
+					in port synchronizedWaves;
+					out port waveSignal;
+				}
+			}
+			part DAC {
+				in port waveSignalDigital;
+				out port waveSignal;
+			}
+			in port signalCorrectionInstructions;
+		}
+		package 'Component Views';
+	}
+	package 'Transducer Package' {
+		part Transducer {
+			in port amplifiedSignal;
+			out port sound;
+			part 'Backing Layer' {
+				in port vibration;
+				out port heat;
+			}
+			part 'Active Element' {
+				in port amplifiedSignal;
+				out port vibration;
+			}
+			part 'Matching Layer' {
+				in port vibration;
+				out port sound;
+			}
+		}
+	}
+	package 'Power Amplifier Package' {
+		part 'Power Amplifier' {
+			in port waveSignal;
+			out port amplifiedSignal;
+			part 'Pre-amplifier' {
+				in port waveSignal;
+				out port preamplifiedSignal;
+			}
+			part 'Input Buffer' {
+				in port waveSignal;
+			}
+			part Amplifier {
+				out port amplifiedSignal;
+				in port preamplifiedSignal;
+			}
+		}
+	}
+	package 'Hydrophone Array Package' {
+		part 'Hydrophone Array' {
+			in port echo;
+			out port echoSignal;
+			part Hydrophone {
+				attribute 'quantity 8+';
+				part 'Matching Layer' {
+					in port echo;
+					out port vibration;
+				}
+				part 'Active Element' {
+					in port vibration;
+					out port lowEchoSignalAnalogue;
+				}
+				part 'Pre-amplifier' {
+					in port lowEchoSignalAnalogue;
+					out port echoSignalAnalogue;
+				}
+				part 'Anti-aliasing Filter' {
+					in port echoSignalAnalogue;
+					out port filteredEchoSignalAnalogue;
+				}
+				part ADC {
+					in port filteredEchoSignalAnalogue;
+					out port echoSignal;
+				}
+				part 'Backing Layer' {
+					in port vibration;
+					out port heat;
+				}
+			}
+		}
+	}
+	package 'Beamformer Package' {
+		part Beamformer {
+			in port echoSignal;
+			out port beamformedSignal;
+			part 'Input Buffer' {
+				in port echoSignal;
+				out port echoSignal;
+			}
+			part 'Delay Unit' {
+				in port echoSignal;
+				in port delay;
+				out port delayedEchoSignal;
+			}
+			part 'Weighting Unit' {
+				in port delayedEchoSignal;
+				out port weightedEchoSignal;
+				in port weight;
+			}
+			part 'Summation Unit' {
+				in port weightedEchoSignal;
+				out port beamformedSignal;
+			}
+			part 'Beam Steering Controller' {
+				out port delay;
+				in port beamDirection;
+				in port beamShape;
+				part 'Delay Calculator' {
+					in port beamDirection;
+					out port delay;
+				}
+				part 'Weight Calculator' {
+					in port beamShape;
+					out port weight;
+				}
+				out port weight;
+			}
+			in port beamformingCorrectionInstructions;
+		}
+		package 'Component Views';
+	}
+	package 'Digital Signal Processor Package' {
+		part 'Digital Signal Processor' {
+			in port beamformedSignal;
+			out port signalCorrectionInstructions;
+			out port beamformingCorrectionInstructions;
+			part 'Matched Filter' {
+				in port beamformedSignal;
+				out port signalTimeOfFlight;
+				part 'Input Buffer' {
+					in port beamformedSignal;
+					out port beamformedSignal;
+				}
+				part 'FFT Transformer' {
+					in port beamformedSignal;
+					out port fourierTransformedInputSignal;
+				}
+				part 'Reference Signal Store' {
+					out port fourierTransformedReferenceSignal;
+				}
+				part 'Spectral Multiplier' {
+					in port fourierTransformedInputSignal;
+					in port fourierTransformedReferenceSignal;
+					out port multipliedFourierTransformedSignals;
+				}
+				part 'IFFT Transformer' {
+					in port multipliedFourierTransformedSignals;
+					out port signalsCorrelationArrayWithOverlaps;
+				}
+				part 'Overlap Manager' {
+					in port signalsCorrelationArrayWithOverlaps;
+					out port signalsCorrelationArrayRaw;
+				}
+				part 'Output Normaliser' {
+					in port signalsCorrelationArrayRaw;
+					out port signalsCorrelationArray;
+				}
+			}
+			part 'Doppler Processing Unit' {
+				in port beamformedSignal;
+				out port signalFrequencyDelta;
+				part 'Input Buffer' {
+					in port beamformedSignal;
+					out port signalAtDistanceN;
+				}
+				part 'Doppler FFT Unit' {
+					in port signalAtDistanceN;
+					out port phaseOscillationFrequency;
+				}
+				part 'Magnitude Calculator' {
+					in port phaseOscillationFrequency;
+					out port dopplerEffectAtDistanceN;
+				}
+				part 'Output Buffer' {
+					in port dopplerEffectAtDistanceN;
+					out port dopplerDistanceMatrix;
+				}
+			}
+			part 'Range-Doppler Map Formation Unit' {
+				in port signalTimeOfFlight;
+				in port signalFrequencyDelta;
+				out port rangeDopplerMap;
+				part 'Matched Filter Input Buffer' {
+					in port signalsCorrelationArray;
+					out port distanceTimeMatrix;
+				}
+				part 'Alignment Unit' {
+					in port dopplerDistanceMatrix;
+					in port distanceTimeMatrix;
+					out port timeAlignedMatrices;
+				}
+				part 'Coherent Integrator' {
+					in port timeAlignedMatrices;
+					out port multipliedMatrices;
+				}
+				part 'Logarithmic Scaler' {
+					port multipliedMatrices;
+					out port rangeDopplerMap;
+				}
+			}
+			part 'Detection Unit' {
+				in port rangeDopplerMap;
+				out port identifiedTargets;
+			}
+			part 'Parameter Estimation Unit' {
+				in port rangeDoplerMap;
+				in port identifiedTargets;
+				out port targetsParameters;
+				part 'Range Estimator' {
+					in port target;
+					in port rangeDopplerMap;
+					out port range;
+				}
+				part 'Velocity Estimator' {
+					in port target;
+					in port rangeDopplerMap;
+					out port velocity;
+				}
+				part 'Angle Estimator' {
+					in port target;
+					out port angle;
+				}
+				part 'Amplitude Corrector' {
+					in port target;
+					in port range;
+					out port reflectionStrength;
+				}
+				part 'Output Assembler' {
+					in port range;
+					in port velocity;
+					in port reflectionStrength;
+					in port angle;
+					out port targetsParameters;
+				}
+			}
+			part 'Classification Unit' {
+				in port targetsParameters;
+				out port labeledTargets;
+				part 'Input Normalizer' {
+					in port targetsParameters;
+					out port parametersVectors;
+				}
+				part Classificator {
+					in port parametersVectors;
+					in port template;
+					out port labeledTargets;
+				}
+				part 'Template Library' {
+					out port template;
+				}
+			}
+			part 'Adaptive Control Unit' {
+				in port labeledTargets;
+				out port signalCorrectionInstructions;
+				out port beamformingCorrectionInstructions;
+			}
+		}
+		package 'Component Views';
+	}
+}

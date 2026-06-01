@@ -1,0 +1,1 @@
+../../../hal_adc/hal_adc.h
