@@ -1,5 +1,5 @@
 CXX      = g++
-CXXFLAGS = -std=c++11 -Wall -Wextra -Werror -I../../../fft -I../../../interfaces
+CXXFLAGS = -std=c++11 -Wall -Wextra -Werror -I../../../fft -I../../../interfaces -I../../../ -DCOMPILING_FFT
 SRCS     = ../../../fft/fft.cpp test_fft.cpp
 TARGET   = test_fft
 

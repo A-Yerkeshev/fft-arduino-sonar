@@ -1,4 +1,6 @@
 #pragma once
+#define HAL_ADC_HEADER
+#include "../decoupling_enforcer.h"
 #include <stdint.h>
 #include "../interfaces/adc_fft.h"
 
