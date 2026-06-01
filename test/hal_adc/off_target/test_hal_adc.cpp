@@ -31,7 +31,7 @@ static void test_hal_adc_read_all_same(void) {
 
     /* Assert */
     CHECK(frame.status == HalAdcStatus::HAL_ADC_STATUS_OK);
-    for (uint8_t i = 0; i < HAL_ADC_FRAME_SIZE; i++) {
+    for (uint8_t i = 0; i < AUDIO_FRAME_SIZE; i++) {
         CHECK(frame.samples[i] == 0);
     }
 }
@@ -47,7 +47,7 @@ static void test_hal_adc_read_all_max(void) {
     AdcFrame frame = hal_adc_read();
 
     /* Assert */
-    for (uint8_t i = 0; i < HAL_ADC_FRAME_SIZE; i++) {
+    for (uint8_t i = 0; i < AUDIO_FRAME_SIZE; i++) {
         CHECK(frame.samples[i] == 0);
     }
 }
@@ -63,9 +63,9 @@ static void test_hal_adc_read_one_max(void) {
     AdcFrame frame = hal_adc_read();
 
     /* Assert — mean = 1023/64 = 15 (integer division) */
-    CHECK(frame.samples[0] == (AdcSample)(1023 - 15));
-    for (uint8_t i = 1; i < HAL_ADC_FRAME_SIZE; i++) {
-        CHECK(frame.samples[i] == (AdcSample)(0 - 15));
+    CHECK(frame.samples[0] == (SensorSample)(1023 - 15));
+    for (uint8_t i = 1; i < AUDIO_FRAME_SIZE; i++) {
+        CHECK(frame.samples[i] == (SensorSample)(0 - 15));
     }
 }
 
