@@ -12,10 +12,6 @@
 
 /* --- Types --- */
 
-/* Q15 fixed-point: [-1.0, 1.0) mapped to [-32768, 32767].
- * Used internally for twiddle factors and Hann coefficients only. */
-typedef int16_t Q15;
-
 /* Magnitude at one frequency bin: isqrt32(re^2 + im^2). */
 typedef uint16_t FftBin;
 

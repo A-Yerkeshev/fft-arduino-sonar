@@ -1,5 +1,26 @@
 #include "fft.h"
 
+/* Wrapper type for Q15 fixed-point values. Construct only via q15_make, which
+ * rejects -32768 — the one value that causes overflow in Q15 multiplication. */
+typedef struct { int16_t val; } Q15;
+
+enum class Q15Status : uint8_t { Q15_STATUS_INVALID = 0, Q15_STATUS_OK };
+
+/* Returned by q15_make — carries the validated Q15 value and construction status. */
+typedef struct { Q15 val; Q15Status status; } Q15Result;
+
+/* Validates that raw is within the safe Q15 range [-32767, 32767].
+ * -32768 is the only int16_t value that overflows Q15 multiplication:
+ * (-32768)*(-32768)>>15 = 32768, which exceeds int16_t max of 32767. */
+static Q15Result q15_make(int16_t raw) {
+    Q15Result result;
+    result.status = Q15Status::Q15_STATUS_INVALID;
+    if (raw < -32767) { return result; }
+    result.val.val = raw;
+    result.status = Q15Status::Q15_STATUS_OK;
+    return result;
+}
+
 static_assert(FFT_N == AUDIO_FRAME_SIZE, "FFT transform size must equal ADC frame size");
 
 /* Each butterfly stage rotates complex values by a frequency-specific angle to
@@ -8,17 +29,17 @@ static_assert(FFT_N == AUDIO_FRAME_SIZE, "FFT transform size must equal ADC fram
  * as Q15 integers so no floating-point is needed at runtime.
  * Stored in flash (PROGMEM) to preserve SRAM. Read via pgm_read_word(). */
 static const Q15 TWIDDLE_COS[32] PROGMEM = {
-     32767,  32609,  32137,  31356,  30273,  28898,  27245,  25329,
-     23170,  20787,  18204,  15446,  12539,   9512,   6393,   3212,
-         0,  -3212,  -6393,  -9512, -12539, -15446, -18204, -20787,
-    -23170, -25329, -27245, -28898, -30273, -31356, -32137, -32609
+    { 32767}, { 32609}, { 32137}, { 31356}, { 30273}, { 28898}, { 27245}, { 25329},
+    { 23170}, { 20787}, { 18204}, { 15446}, { 12539}, {  9512}, {  6393}, {  3212},
+    {     0}, { -3212}, { -6393}, { -9512}, {-12539}, {-15446}, {-18204}, {-20787},
+    {-23170}, {-25329}, {-27245}, {-28898}, {-30273}, {-31356}, {-32137}, {-32609}
 };
 
 static const Q15 TWIDDLE_SIN[32] PROGMEM = {
-         0,  -3212,  -6393,  -9512, -12539, -15446, -18204, -20787,
-    -23170, -25329, -27245, -28898, -30273, -31356, -32137, -32609,
-    -32767, -32609, -32137, -31356, -30273, -28898, -27245, -25329,
-    -23170, -20787, -18204, -15446, -12539,  -9512,  -6393,  -3212
+    {     0}, { -3212}, { -6393}, { -9512}, {-12539}, {-15446}, {-18204}, {-20787},
+    {-23170}, {-25329}, {-27245}, {-28898}, {-30273}, {-31356}, {-32137}, {-32609},
+    {-32767}, {-32609}, {-32137}, {-31356}, {-30273}, {-28898}, {-27245}, {-25329},
+    {-23170}, {-20787}, {-18204}, {-15446}, {-12539}, { -9512}, { -6393}, { -3212}
 };
 
 /* Without windowing, the FFT assumes the signal repeats perfectly at the frame
@@ -27,14 +48,14 @@ static const Q15 TWIDDLE_SIN[32] PROGMEM = {
  * smooths the boundary and produces sharper, more accurate frequency peaks.
  * Pre-computed as Q15 integers; stored in flash (PROGMEM) to preserve SRAM. */
 static const Q15 HANN[64] PROGMEM = {
-         0,     79,    315,    705,   1247,   1935,   2761,   3719,
-      4799,   5990,   7281,   8660,  10114,  11628,  13187,  14778,
-     16383,  17989,  19580,  21139,  22653,  24107,  25486,  26777,
-     27968,  29048,  30006,  30832,  31520,  32062,  32452,  32688,
-     32767,  32688,  32452,  32062,  31520,  30832,  30006,  29048,
-     27968,  26777,  25486,  24107,  22653,  21139,  19580,  17989,
-     16384,  14778,  13187,  11628,  10114,   8660,   7281,   5990,
-      4799,   3719,   2761,   1935,   1247,    705,    315,      79
+    {     0}, {    79}, {   315}, {   705}, {  1247}, {  1935}, {  2761}, {  3719},
+    {  4799}, {  5990}, {  7281}, {  8660}, { 10114}, { 11628}, { 13187}, { 14778},
+    { 16383}, { 17989}, { 19580}, { 21139}, { 22653}, { 24107}, { 25486}, { 26777},
+    { 27968}, { 29048}, { 30006}, { 30832}, { 31520}, { 32062}, { 32452}, { 32688},
+    { 32767}, { 32688}, { 32452}, { 32062}, { 31520}, { 30832}, { 30006}, { 29048},
+    { 27968}, { 26777}, { 25486}, { 24107}, { 22653}, { 21139}, { 19580}, { 17989},
+    { 16384}, { 14778}, { 13187}, { 11628}, { 10114}, {  8660}, {  7281}, {  5990},
+    {  4799}, {  3719}, {  2761}, {  1935}, {  1247}, {   705}, {   315}, {    79}
 };
 
 static Q15  s_re[FFT_N]; /* real part buffer; written per fft_compute call */
@@ -65,6 +86,7 @@ FftResult fft_compute(FftInput input) {
     if (s_busy) { result.status = FftStatus::FFT_STATUS_REENTRANT; return result; }
     s_busy = true;
     (void)input;
+    q15_make(0);
     fft_bit_reverse(s_re, s_im);
     s_busy = false;
     return result;
