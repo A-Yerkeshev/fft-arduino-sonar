@@ -60,6 +60,32 @@ static const Q15 HANN[64] PROGMEM = {
 
 static Q15  s_re[FFT_N]; /* real part buffer; written per fft_compute call */
 static Q15  s_im[FFT_N]; /* imaginary part buffer; zero-initialised each call */
+/* Multiplies two Q15 values; right-shifts 15 to return the result to Q15 range.
+ * Result is mathematically bounded to [-32766, 32766]: max product 32767*32767>>15 = 32766,
+ * so the output is always a valid Q15 and needs no factory construction. */
+static Q15 q15_mul(Q15 a, Q15 b) {
+    return {(int16_t)((int32_t)a.val * (int32_t)b.val >> 15)};
+}
+
+typedef struct { Q15 re_u; Q15 im_u; Q15 re_v; Q15 im_v; } ButterflyOutput;
+
+/* A butterfly takes two complex values u and v, combines them with a twiddle
+ * factor w (a frequency-specific rotation), and writes two new values back
+ * in their place. Running N/2 butterflies across the array once is one stage;
+ * after six stages each slot holds energy for one specific frequency.
+ * tr/ti are int32_t because each is a difference of two Q15 values — the result
+ * can reach ±65534, which overflows int16_t before the /2 is applied. */
+static ButterflyOutput fft_butterfly(Q15 re_u, Q15 im_u, Q15 re_v, Q15 im_v, Q15 wr, Q15 wi) {
+    int32_t tr = (int32_t)q15_mul(wr, re_v).val - (int32_t)q15_mul(wi, im_v).val;
+    int32_t ti = (int32_t)q15_mul(wr, im_v).val + (int32_t)q15_mul(wi, re_v).val;
+    ButterflyOutput out;
+    out.re_u = {(int16_t)((re_u.val + tr) >> 1)};
+    out.im_u = {(int16_t)((im_u.val + ti) >> 1)};
+    out.re_v = {(int16_t)((re_u.val - tr) >> 1)};
+    out.im_v = {(int16_t)((im_u.val - ti) >> 1)};
+    return out;
+}
+
 static bool s_busy = false; /* guards against re-entrant calls */
 
 /* Reorders re[] and im[] from natural time order into the scrambled order that
@@ -88,6 +114,7 @@ FftResult fft_compute(FftInput input) {
     (void)input;
     q15_make(0);
     fft_bit_reverse(s_re, s_im);
+    fft_butterfly(s_re[0], s_im[0], s_re[1], s_im[1], s_re[0], s_im[0]);
     s_busy = false;
     return result;
 }
