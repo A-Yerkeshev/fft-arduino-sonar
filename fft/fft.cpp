@@ -151,9 +151,10 @@ FftResult fft_compute(FftInput input) {
     if (s_busy) { result.status = FftStatus::FFT_STATUS_REENTRANT; return result; }
     s_busy = true;
     for (uint8_t n = 0; n < FFT_N; n++) {
-        Q15 hann   = {(int16_t)pgm_read_word(&HANN[n].val)};
-        Q15 sample = {input.samples[n]}; /* ASSUME: SensorSample in [-1023,+1023] per hal_adc contract */
-        s_re[n] = q15_mul(hann, sample);
+        Q15 hann     = {(int16_t)pgm_read_word(&HANN[n].val)};
+        Q15Result sr = q15_make(input.samples[n]);
+        if (sr.status != Q15Status::Q15_STATUS_OK) { s_busy = false; return result; }
+        s_re[n] = q15_mul(hann, sr.val);
         s_im[n] = {0};
     }
     fft_bit_reverse(s_re, s_im);
