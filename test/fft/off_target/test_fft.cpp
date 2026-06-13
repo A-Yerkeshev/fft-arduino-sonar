@@ -29,18 +29,20 @@ static int s_failures = 0;
  *     D1: one sample = -32768 → FFT_STATUS_INVALID
  *     D2: one sample = -32767 → FFT_STATUS_OK (just inside valid range)
  *   Class E — Two-tone + noise: dominant and secondary frequencies
- *     Boundary E1: dominant at bin 4  (600 Hz), secondary at bin 20 (3000 Hz)
- *     Boundary E2: dominant at bin 20 (3000 Hz), secondary at bin 4  (600 Hz)
+ *     Boundary E1: dominant at bin 4  (600 Hz), secondary at bin 5  (750 Hz)
+ *     Boundary E2: dominant at bin 20 (3000 Hz), secondary at bin 19 (2850 Hz)
  *
  * Validated noise levels:
- *   Class B: tone amplitude 800, noise ±200 — SNR 12 dB (4:1)
+ *   Class B: tone amplitude 800, noise ±800 — SNR 0 dB (1:1); FFT processing
+ *            gain (~15 dB for N=64) lifts effective output SNR to ~15 dB
  *   Class C: impulse 1023 at window centre, surrounding noise ±200
  *   Class E: dominant amplitude 600, secondary 150, noise ±100
  *            dominant:secondary ratio 12 dB (4:1); SNR 15.6 dB (6:1)
  *
  * Validated frequency separation:
  *   Class B: single tone tested at bin 1 and bin 31 (4500 Hz apart)
- *   Class E: two tones separated by 16 bins = 2400 Hz (150 Hz/bin × 16)
+ *   Class E: two tones separated by 1 bin = 150 Hz (150 Hz/bin × 1)
+ *            — minimum resolvable separation for this FFT size
  *
  * Random seed: srand(42) per test for reproducibility.
  *
@@ -100,11 +102,11 @@ static void test_fft_compute_zero_input(void) {
     }
 }
 
-/* B1: noisy tone at bin 1 — lowest non-zero frequency (150 Hz). */
+/* B1: noisy tone at bin 1 — lowest non-zero frequency (150 Hz), 0 dB SNR. */
 static void test_fft_compute_noisy_tone_bin1(void) {
     /* Setup */
     srand(42);
-    FftInput input = make_tone(1, 800, 200);
+    FftInput input = make_tone(1, 800, 800);
 
     /* Run */
     FftResult result = fft_compute(input);
@@ -114,11 +116,11 @@ static void test_fft_compute_noisy_tone_bin1(void) {
     CHECK(peak_bin(result) == 1);
 }
 
-/* B2: noisy tone at bin 31 — Nyquist boundary (4650 Hz). */
+/* B2: noisy tone at bin 31 — Nyquist boundary (4650 Hz), 0 dB SNR. */
 static void test_fft_compute_noisy_tone_bin31(void) {
     /* Setup */
     srand(42);
-    FftInput input = make_tone(31, 800, 200);
+    FftInput input = make_tone(31, 800, 800);
 
     /* Run */
     FftResult result = fft_compute(input);
@@ -181,11 +183,12 @@ static void test_fft_compute_boundary_sample(void) {
     CHECK(result.status == FftStatus::FFT_STATUS_OK);
 }
 
-/* E1: dominant at bin 4 (600 Hz) + secondary at bin 20 (3000 Hz) + noise ±100. */
+/* E1: dominant at bin 4 (600 Hz) + secondary at bin 5 (750 Hz) + noise ±100.
+ * 1-bin separation (150 Hz) — minimum resolvable separation for N=64. */
 static void test_fft_compute_two_tones_dominant_low(void) {
     /* Setup */
     srand(42);
-    FftInput input = make_two_tones(4, 600, 20, 150, 100);
+    FftInput input = make_two_tones(4, 600, 5, 150, 100);
 
     /* Run */
     FftResult result = fft_compute(input);
@@ -193,15 +196,16 @@ static void test_fft_compute_two_tones_dominant_low(void) {
     /* Assert */
     CHECK(result.status == FftStatus::FFT_STATUS_OK);
     CHECK(peak_bin(result) == 4);
-    CHECK(result.bins[4] > result.bins[20]);
-    CHECK(result.bins[20] > 0);
+    CHECK(result.bins[4] > result.bins[5]);
+    CHECK(result.bins[5] > 0);
 }
 
-/* E2: dominant at bin 20 (3000 Hz) + secondary at bin 4 (600 Hz) + noise ±100. */
+/* E2: dominant at bin 20 (3000 Hz) + secondary at bin 19 (2850 Hz) + noise ±100.
+ * 1-bin separation (150 Hz) — minimum resolvable separation for N=64. */
 static void test_fft_compute_two_tones_dominant_high(void) {
     /* Setup */
     srand(42);
-    FftInput input = make_two_tones(20, 600, 4, 150, 100);
+    FftInput input = make_two_tones(20, 600, 19, 150, 100);
 
     /* Run */
     FftResult result = fft_compute(input);
@@ -209,8 +213,8 @@ static void test_fft_compute_two_tones_dominant_high(void) {
     /* Assert */
     CHECK(result.status == FftStatus::FFT_STATUS_OK);
     CHECK(peak_bin(result) == 20);
-    CHECK(result.bins[20] > result.bins[4]);
-    CHECK(result.bins[4] > 0);
+    CHECK(result.bins[20] > result.bins[19]);
+    CHECK(result.bins[19] > 0);
 }
 
 int main(void) {
