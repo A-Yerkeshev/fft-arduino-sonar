@@ -109,6 +109,20 @@ static void fft_stages(Q15 re[], Q15 im[]) {
     }
 }
 
+/* Integer square root via binary search. Returns r such that r² ≤ n < (r+1)².
+ * hi = 65535 covers the full uint32_t input range — no assumption on the caller
+ * is needed. Deterministic: at most 16 iterations (log2(65535)). */
+static uint16_t isqrt32(uint32_t n) {
+    if (n == 0) return 0;
+    uint16_t lo = 1, hi = 65535;
+    while (lo < hi) {
+        uint16_t mid = (uint16_t)(lo + (hi - lo + 1) / 2);
+        if ((uint32_t)mid * mid <= n) lo = mid;
+        else hi = (uint16_t)(mid - 1);
+    }
+    return lo;
+}
+
 static bool s_busy = false; /* guards against re-entrant calls */
 
 /* Reorders re[] and im[] from natural time order into the scrambled order that
@@ -136,10 +150,19 @@ FftResult fft_compute(FftInput input) {
     result.status = FftStatus::FFT_STATUS_INVALID;
     if (s_busy) { result.status = FftStatus::FFT_STATUS_REENTRANT; return result; }
     s_busy = true;
-    (void)input;
-    q15_make(0);
+    for (uint8_t n = 0; n < FFT_N; n++) {
+        Q15 hann   = {(int16_t)pgm_read_word(&HANN[n].val)};
+        Q15 sample = {input.samples[n]}; /* ASSUME: SensorSample in [-1023,+1023] per hal_adc contract */
+        s_re[n] = q15_mul(hann, sample);
+        s_im[n] = {0};
+    }
     fft_bit_reverse(s_re, s_im);
     fft_stages(s_re, s_im);
+    for (uint8_t k = 0; k < FFT_BINS; k++) {
+        int32_t re = s_re[k].val, im = s_im[k].val;
+        result.bins[k] = isqrt32((uint32_t)(re * re + im * im));
+    }
+    result.status = FftStatus::FFT_STATUS_OK;
     s_busy = false;
     return result;
 }
