@@ -86,11 +86,36 @@ static ButterflyOutput fft_butterfly(Q15 re_u, Q15 im_u, Q15 re_v, Q15 im_v, Q15
     return out;
 }
 
+/* Runs all 6 FFT stages. Each stage applies N/2 butterflies across re[]/im[]
+ * with twiddle factors that rotate by increasing fractions of a full cycle,
+ * progressively separating the signal into individual frequency components.
+ * re[]/im[] are modified in-place; passing by value would require returning a
+ * 256-byte struct (2 × 64 × int16_t), warranting pass-by-reference instead.
+ * ASSUME: fft_bit_reverse has been called first; FFT_N is a power of 2 (64). */
+static void fft_stages(Q15 re[], Q15 im[]) {
+    for (uint8_t stage = 0; stage < 6; stage++) {
+        uint8_t half_span = (uint8_t)(1 << stage);
+        uint8_t stride    = (uint8_t)(half_span << 1);
+        uint8_t tw_step   = (uint8_t)(FFT_N / 2 / half_span);
+        for (uint8_t group = 0; group < FFT_N / stride; group++) {
+            for (uint8_t pair = 0; pair < half_span; pair++) {
+                uint8_t u = group * stride + pair, v = u + half_span;
+                Q15 wr = {(int16_t)pgm_read_word(&TWIDDLE_COS[pair * tw_step].val)};
+                Q15 wi = {(int16_t)pgm_read_word(&TWIDDLE_SIN[pair * tw_step].val)};
+                ButterflyOutput b = fft_butterfly(re[u], im[u], re[v], im[v], wr, wi);
+                re[u] = b.re_u; im[u] = b.im_u; re[v] = b.re_v; im[v] = b.im_v;
+            }
+        }
+    }
+}
+
 static bool s_busy = false; /* guards against re-entrant calls */
 
 /* Reorders re[] and im[] from natural time order into the scrambled order that
  * the butterfly stages expect. Without this, each stage would need extra index
  * arithmetic to find its input pairs — doing it once upfront keeps the stages simple.
+ * re[]/im[] are modified in-place; passing by value would require returning a
+ * 256-byte struct (2 × 64 × int16_t), warranting pass-by-reference instead.
  * ASSUME: FFT_N is a power of 2 (64) */
 static void fft_bit_reverse(Q15 re[], Q15 im[]) {
     uint8_t j = 0;
@@ -114,7 +139,7 @@ FftResult fft_compute(FftInput input) {
     (void)input;
     q15_make(0);
     fft_bit_reverse(s_re, s_im);
-    fft_butterfly(s_re[0], s_im[0], s_re[1], s_im[1], s_re[0], s_im[0]);
+    fft_stages(s_re, s_im);
     s_busy = false;
     return result;
 }
