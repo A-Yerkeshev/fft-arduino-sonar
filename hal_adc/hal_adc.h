@@ -1,8 +1,8 @@
 #pragma once
 #define HAL_ADC_HEADER
-#include "../decoupling_enforcer.h"
+#include "decoupling_enforcer.h"
 #include <stdint.h>
-#include "../interfaces/adc_fft.h"
+#include "interfaces/adc_fft.h"
 
 /* MODULE: hal_adc
  * PURPOSE: Collect a fixed-size frame of DC-centered samples from the sound sensor

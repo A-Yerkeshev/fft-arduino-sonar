@@ -1,8 +1,8 @@
 #pragma once
 #define FFT_HEADER
-#include "../decoupling_enforcer.h"
+#include "decoupling_enforcer.h"
 #include <stdint.h>
-#include "../interfaces/adc_fft.h"
+#include "interfaces/adc_fft.h"
 
 /* MODULE: fft
  * PURPOSE: Compute the magnitude spectrum of a fixed-size sample buffer

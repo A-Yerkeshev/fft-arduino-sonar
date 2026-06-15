@@ -1,4 +1,7 @@
 #include "fft.h"
+#ifdef ARDUINO
+#include <avr/pgmspace.h> /* provides PROGMEM and pgm_read_word on-target */
+#endif
 
 /* Wrapper type for Q15 fixed-point values. Construct only via q15_make, which
  * rejects -32768 — the one value that causes overflow in Q15 multiplication. */
