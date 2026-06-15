@@ -1,4 +1,8 @@
 media/
+diagrams/
 CLAUDE.md
 test/hal_adc/off_target/test_hal_adc
+test/hal_adc/on_target/build.opt
 test/fft/off_target/test_fft
+test/fft/off_target/perf_fft
+test/fft/on_target/build.opt
